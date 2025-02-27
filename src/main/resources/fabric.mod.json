@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "id": "addon-template",
+  "id": "diff",
   "version": "${version}",
-  "name": "Addon Template",
-  "description": "An addon template for Meteor Client addons.",
+  "name": "diff",
+  "description": "An addon for Meteor Client.",
   "authors": [
-    "seasnail"
+    "2(10"
   ],
   "contact": {
-    "repo": "https://github.com/MeteorDevelopment/meteor-addon-template"
+    "repo": "https://github.com/tw0ten/meteor-diff"
   },
   "icon": "assets/template/icon.png",
   "environment": "client",
   "entrypoints": {
     "meteor": [
-      "com.example.addon.AddonTemplate"
+      "twoten.meteor.diff.Addon"
     ]
   },
   "mixins": [
-    "addon-template.mixins.json"
+    "mixins.json"
   ],
   "custom": {
     "meteor-client:color": "225,25,25"
