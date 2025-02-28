@@ -10,7 +10,7 @@
   "contact": {
     "repo": "https://github.com/tw0ten/meteor-diff"
   },
-  "icon": "assets/template/icon.png",
+  "icon": "assets/diff/icon.png",
   "environment": "client",
   "entrypoints": {
     "meteor": [

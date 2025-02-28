@@ -7,8 +7,11 @@ import meteordevelopment.meteorclient.utils.render.color.Color;
 import twoten.meteor.diff.Addon;
 
 public class DiffHud extends HudElement {
-    public static final HudElementInfo<DiffHud> INFO = new HudElementInfo<>(Addon.HUD_GROUP, "diff-hud",
-            "Diff hud element.", DiffHud::new);
+    public static final HudElementInfo<DiffHud> INFO = new HudElementInfo<>(
+            Addon.HUD_GROUP,
+            "diff-hud",
+            "Diff hud element.",
+            DiffHud::new);
 
     public DiffHud() {
         super(INFO);
@@ -16,12 +19,13 @@ public class DiffHud extends HudElement {
 
     @Override
     public void render(final HudRenderer renderer) {
-        setSize(renderer.textWidth("Example element", true), renderer.textHeight(true));
+        final var h = renderer.textHeight(true);
+        final var w = Math.max();
+        setSize(renderer.textWidth("diff", true), h * 4);
 
-        renderer.quad(x, y, getWidth(), getHeight(), Color.LIGHT_GRAY);
-
-        renderer.text("Example element", x, y, Color.WHITE, true);
-        renderer.text("++++", x, y + renderer.textHeight(), Color.GREEN, true);
-        renderer.text("---", x, y + renderer.textHeight() * 2, Color.RED, true);
+        renderer.text("diff", x, y + h * 0, Color.WHITE, true);
+        renderer.text("date", x, y + h * 1, Color.WHITE, true);
+        renderer.text("++++", x, y + h * 2, Color.GREEN, true);
+        renderer.text("---", x, y + h * 3, Color.RED, true);
     }
 }
