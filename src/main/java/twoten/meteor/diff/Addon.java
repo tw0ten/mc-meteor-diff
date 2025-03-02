@@ -18,8 +18,8 @@ import twoten.meteor.diff.modules.VisualDiff;
 
 public class Addon extends MeteorAddon {
     public static final Logger LOG = LogUtils.getLogger();
-    public static final Category CATEGORY = new Category("diff");
-    public static final HudGroup HUD_GROUP = new HudGroup("diff");
+    public static final Category CATEGORY = new Category("Diff");
+    public static final HudGroup HUD_GROUP = new HudGroup("Diff");
 
     @Override
     public void onInitialize() {

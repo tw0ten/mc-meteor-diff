@@ -20,8 +20,8 @@ public class DiffHud extends HudElement {
     @Override
     public void render(final HudRenderer renderer) {
         final var h = renderer.textHeight(true);
-        final var w = Math.max();
-        setSize(renderer.textWidth("diff", true), h * 4);
+        final var w = Math.max(renderer.textWidth("diff", true), renderer.textWidth("++++", true));
+        setSize(w, h * 4);
 
         renderer.text("diff", x, y + h * 0, Color.WHITE, true);
         renderer.text("date", x, y + h * 1, Color.WHITE, true);

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "diff",
   "version": "${version}",
-  "name": "diff",
+  "name": "Diff",
   "description": "An addon for Meteor Client.",
   "authors": [
     "2(10"
@@ -10,7 +10,7 @@
   "contact": {
     "repo": "https://github.com/tw0ten/meteor-diff"
   },
-  "icon": "assets/diff/icon.png",
+  "icon": "assets/icon.png",
   "environment": "client",
   "entrypoints": {
     "meteor": [
@@ -18,7 +18,7 @@
     ]
   },
   "mixins": [
-    "mixins.json"
+    "meteor-diff.mixins.json"
   ],
   "custom": {
     "meteor-client:color": "225,25,25"
