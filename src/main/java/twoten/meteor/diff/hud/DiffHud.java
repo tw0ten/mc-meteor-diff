@@ -9,7 +9,7 @@ import twoten.meteor.diff.Addon;
 public class DiffHud extends HudElement {
     public static final HudElementInfo<DiffHud> INFO = new HudElementInfo<>(
             Addon.HUD_GROUP,
-            "diff-hud",
+            "diff",
             "Diff hud element.",
             DiffHud::new);
 
@@ -20,12 +20,12 @@ public class DiffHud extends HudElement {
     @Override
     public void render(final HudRenderer renderer) {
         final var h = renderer.textHeight(true);
-        final var w = Math.max(renderer.textWidth("diff", true), renderer.textWidth("++++", true));
-        setSize(w, h * 4);
+        final var w = Math.max(renderer.textWidth("date", true), renderer.textWidth("    ", true));
+        setSize(w, h * 2);
 
-        renderer.text("diff", x, y + h * 0, Color.WHITE, true);
-        renderer.text("date", x, y + h * 1, Color.WHITE, true);
-        renderer.text("++++", x, y + h * 2, Color.GREEN, true);
-        renderer.text("---", x, y + h * 3, Color.RED, true);
+        renderer.text("date", x, y + h * 0, Color.WHITE, true);
+        final var add = "+";
+        renderer.text(add, x, y + h * 1, Color.GREEN, true);
+        renderer.text("---", x + renderer.textWidth(add, true), y + h * 1, Color.RED, true);
     }
 }
