@@ -1,11 +1,12 @@
 package twoten.meteor.diff.modules;
 
+import static twoten.meteor.diff.Diff.s;
+
 import static java.nio.file.Files.delete;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.write;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
@@ -21,14 +22,12 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.world.chunk.Chunk;
 import twoten.meteor.diff.Addon;
+import twoten.meteor.diff.hud.RadarHud;
 import twoten.meteor.diff.Diff;
 
 public class SaveDiff extends Module {
-    private interface paths {
-        Path latest = Path.of(String.valueOf(0L));
-        Path hash = Path.of(".hash");
-    }
 
     private static boolean mkdirs(final Path path) {
         return path.toFile().mkdirs();
@@ -40,6 +39,19 @@ public class SaveDiff extends Module {
 
     private static Path follow(final Path link) throws IOException {
         return link.toRealPath();
+    }
+
+    private static byte[] hash(final Chunk c) {
+        return new byte[] {
+                0b0,
+                0b0,
+                0b0,
+                0b0,
+                0b0,
+                0b0,
+                0b0,
+                0b0,
+        };
     }
 
     private final SettingGroup sgGeneral = this.settings.getDefaultGroup();
@@ -109,40 +121,68 @@ public class SaveDiff extends Module {
 
         final var chunk = event.chunk();
         final var pos = chunk.getPos();
-        final var hash = BigInteger.valueOf(chunk.hashCode()).toByteArray(); // TODO: actual hash? maybe world time
+        final var hash = hash(chunk);
         final var time = Instant.now().getEpochSecond();
 
         final var p = Diff.dimPath().resolve(pos.x + " " + pos.z);
         final var file = p.resolve(String.valueOf(time));
-        final var latest = p.resolve(paths.latest);
+        final var latest = p.resolve(Diff.paths.latest);
 
+        // TODO: run this sync? schedule it?
         try {
-            if (exists(latest.resolve(paths.hash))) {
-                final var latestName = follow(latest).getFileName();
-                if (Arrays.equals(Files.readAllBytes(latest.resolve(paths.hash)), hash))
-                    symlink(file, latestName);
-                else {
-                    final var lastTime = Long.parseLong(latestName.toString());
-                    if (time - lastTime < minTime.get())
-                        FileUtils.deleteDirectory(follow(latest).toFile());
-                }
+            if (exists(latest)) {
+                final var realLatest = follow(latest);
+                final var latestName = realLatest.getFileName();
+                final var lastTime = Long.parseLong(latestName.toString());
+                if (lastTime < time)
+                    if (Arrays.equals(Files.readAllBytes(latest.resolve(Diff.paths.chunk.hash)), hash)) {
+                        symlink(file, latestName);
+                    } else {
+                        if (time - lastTime < minTime.get()) {
+                            final var f = follow(latest);
+                            FileUtils.deleteDirectory(f.toFile());
+                            symlink(f, file.getFileName());
+                        }
+                    }
                 delete(latest);
             }
 
             if (!exists(file)) {
                 mkdirs(file);
-                write(file.resolve(paths.hash), hash);
+                write(file.resolve(Diff.paths.chunk.hash), hash);
+
                 if (saveMap.get())
-                    write(file.resolve("map"), new byte[0]);
+                    write(file.resolve(Diff.paths.chunk.map), map(chunk));
                 if (saveBlocks.get())
-                    write(file.resolve("blocks"), new byte[0]);
+                    write(file.resolve(Diff.paths.chunk.blocks), new byte[0]);
                 if (saveEntities.get())
-                    write(file.resolve("entities"), new byte[0]);
+                    write(file.resolve(Diff.paths.chunk.entities), new byte[0]);
             }
+
+            // TODO: try RegionFile
             symlink(latest, file.getFileName());
         } catch (final Exception e) {
-            info(e.getClass().getSimpleName() + " " + e.getMessage());
             e.printStackTrace();
+            info(e.getClass().getSimpleName() + " " + e.getMessage());
         }
+    }
+
+    public static final int colorBytes = Integer.BYTES - 1;
+
+    private byte[] map(final Chunk c) {
+        final var colors = RadarHud.map(c);
+        final var out = new byte[s * s * colorBytes];
+
+        for (var x = 0; x < s; x++) {
+            for (var z = 0; z < s; z++) {
+                final var color = colors[x][z];
+                final var i = (x * s + z) * colorBytes;
+                out[i + 0] = (byte) color.r;
+                out[i + 1] = (byte) color.g;
+                out[i + 2] = (byte) color.b;
+            }
+        }
+
+        return out;
     }
 }

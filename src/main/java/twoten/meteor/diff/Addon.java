@@ -13,6 +13,7 @@ import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import twoten.meteor.diff.commands.DiffCommand;
 import twoten.meteor.diff.hud.DiffHud;
+import twoten.meteor.diff.hud.RadarHud;
 import twoten.meteor.diff.modules.SaveDiff;
 import twoten.meteor.diff.modules.VisualDiff;
 
@@ -34,6 +35,7 @@ public class Addon extends MeteorAddon {
 
         // HUD
         Hud.get().register(DiffHud.INFO);
+        Hud.get().register(RadarHud.INFO);
     }
 
     @Override

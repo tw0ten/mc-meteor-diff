@@ -6,8 +6,11 @@ import java.nio.file.Path;
 
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.utils.Utils;
+import net.minecraft.world.chunk.Chunk;
 
 public class Diff {
+    public static final int s = Chunk.field_54147;
+
     public static final Path root = MeteorClient.FOLDER.toPath().resolve("diff");
 
     public static Path worldPath() {
@@ -16,6 +19,18 @@ public class Diff {
 
     public static Path dimPath() {
         return worldPath().resolve(mc.world.getRegistryKey().getValue().toString());
+    }
+
+    public interface paths {
+        interface chunk {
+            Path hash = Path.of(".hash");
+
+            Path map = Path.of("map");
+            Path blocks = Path.of("blocks");
+            Path entities = Path.of("entities");
+        }
+
+        Path latest = Path.of(String.valueOf(0L));
     }
 
     // i should just run /bin/git
