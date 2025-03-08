@@ -23,15 +23,12 @@ public class Diff {
 
     public interface paths {
         interface chunk {
-            Path hash = Path.of(".hash");
-
             Path map = Path.of("map");
             Path blocks = Path.of("blocks");
             Path entities = Path.of("entities");
         }
 
+        Path hash = Path.of(".hash");
         Path latest = Path.of(String.valueOf(0L));
     }
-
-    // i should just run /bin/git
 }

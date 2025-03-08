@@ -26,6 +26,7 @@ import net.minecraft.world.chunk.Chunk;
 import twoten.meteor.diff.Addon;
 import twoten.meteor.diff.hud.RadarHud;
 import twoten.meteor.diff.Diff;
+import twoten.meteor.diff.Diff.paths;
 
 public class SaveDiff extends Module {
 
@@ -43,14 +44,14 @@ public class SaveDiff extends Module {
 
     private static byte[] hash(final Chunk c) {
         return new byte[] {
-                0b0,
-                0b0,
-                0b0,
-                0b0,
-                0b0,
-                0b0,
-                0b0,
-                0b0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                Math.random() < 0.5 ? (byte) 0 : 1,
         };
     }
 
@@ -114,6 +115,8 @@ public class SaveDiff extends Module {
         super(Addon.CATEGORY, "save-diff", "Download chunks.");
     }
 
+    // TODO: wipe data button
+
     @EventHandler
     private void onChunkData(final ChunkDataEvent event) {
         if (!onLoad.get())
@@ -122,45 +125,42 @@ public class SaveDiff extends Module {
         final var chunk = event.chunk();
         final var pos = chunk.getPos();
         final var hash = hash(chunk);
-        final var time = Instant.now().getEpochSecond();
+        final var time = System.currentTimeMillis();
 
         final var p = Diff.dimPath().resolve(pos.x + " " + pos.z);
         final var file = p.resolve(String.valueOf(time));
-        final var latest = p.resolve(Diff.paths.latest);
+        final var latest = p.resolve(paths.latest);
 
-        // TODO: run this sync? schedule it?
+        // TODO: RegionFile?
         try {
             if (exists(latest)) {
                 final var realLatest = follow(latest);
-                final var latestName = realLatest.getFileName();
-                final var lastTime = Long.parseLong(latestName.toString());
-                if (lastTime < time)
-                    if (Arrays.equals(Files.readAllBytes(latest.resolve(Diff.paths.chunk.hash)), hash)) {
-                        symlink(file, latestName);
-                    } else {
-                        if (time - lastTime < minTime.get()) {
-                            final var f = follow(latest);
-                            FileUtils.deleteDirectory(f.toFile());
-                            symlink(f, file.getFileName());
-                        }
-                    }
+                final var lastTime = Long.parseLong(realLatest.getFileName().toString());
+                if (lastTime == time)
+                    return;
+                if (Arrays.equals(Files.readAllBytes(latest.resolve(paths.hash)), hash)) {
+                    if (!exists(file))
+                        symlink(file, realLatest.getFileName());
+                } else if (time - lastTime < minTime.get() * 1000) {
+                    FileUtils.deleteDirectory(realLatest.toFile());
+                    symlink(realLatest, file.getFileName());
+                }
                 delete(latest);
             }
 
             if (!exists(file)) {
                 mkdirs(file);
-                write(file.resolve(Diff.paths.chunk.hash), hash);
+                write(file.resolve(paths.hash), hash);
 
                 if (saveMap.get())
-                    write(file.resolve(Diff.paths.chunk.map), map(chunk));
+                    write(file.resolve(paths.chunk.map), map(chunk));
                 if (saveBlocks.get())
-                    write(file.resolve(Diff.paths.chunk.blocks), new byte[0]);
+                    write(file.resolve(paths.chunk.blocks), new byte[0]);
                 if (saveEntities.get())
-                    write(file.resolve(Diff.paths.chunk.entities), new byte[0]);
+                    write(file.resolve(paths.chunk.entities), new byte[0]);
             }
 
-            // TODO: try RegionFile
-            symlink(latest, file.getFileName());
+            symlink(latest, follow(file).getFileName());
         } catch (final Exception e) {
             e.printStackTrace();
             info(e.getClass().getSimpleName() + " " + e.getMessage());
@@ -171,7 +171,7 @@ public class SaveDiff extends Module {
 
     private byte[] map(final Chunk c) {
         final var colors = RadarHud.map(c);
-        final var out = new byte[s * s * colorBytes];
+        final var out = new byte[colors.length * colors[0].length * colorBytes];
 
         for (var x = 0; x < s; x++) {
             for (var z = 0; z < s; z++) {

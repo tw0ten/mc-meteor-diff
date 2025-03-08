@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import meteordevelopment.meteorclient.MeteorClient;
-import meteordevelopment.meteorclient.events.entity.player.PlayerMoveEvent;
 import meteordevelopment.meteorclient.events.world.ChunkDataEvent;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -18,6 +17,11 @@ import meteordevelopment.meteorclient.systems.hud.HudElementInfo;
 import meteordevelopment.meteorclient.systems.hud.HudRenderer;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.client.render.MapRenderState;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.component.type.MapIdComponent;
+import net.minecraft.item.FilledMapItem;
+import net.minecraft.item.map.MapState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
@@ -43,8 +47,7 @@ public class RadarHud extends HudElement {
             for (var z = 0; z < s; z++) {
                 final var p = pos.add(x, height.get(x, z), z);
                 final var block = c.getBlockState(p);
-                final var color = new Color(block.getMapColor(mc.world, p).color);
-                out[x][z] = color;
+                out[x][z] = new Color(block.getMapColor(mc.world, p).color);
             }
         }
 
@@ -55,12 +58,13 @@ public class RadarHud extends HudElement {
         return b < 0 ? 0x100 + b : b;
     }
 
+    // TODO: export as png button
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Integer> chunks = sgGeneral.add(new IntSetting.Builder()
             .name("chunks")
             .description("The width and height of the radar in chunks")
-            .defaultValue(10)
+            .defaultValue(11)
             .onChanged((i) -> {
                 data = new Color[i][i][s][s];
                 calculateSize();
@@ -93,7 +97,6 @@ public class RadarHud extends HudElement {
         for (var x = 0; x < data.length; x++)
             for (var z = 0; z < data[x].length; z++) {
                 final var chunk = data[x][z];
-                if(chunk == null) continue;
                 renderChunk(r, getX() + x * s * scale.get(), getY() + z * s * scale.get(), chunk);
             }
     }
@@ -137,14 +140,38 @@ public class RadarHud extends HudElement {
     }
 
     private void renderChunk(final HudRenderer r, final double x, final double y, final Color[][] colors) {
-        final var scale = this.scale.get();
+        final var scale = (double) this.scale.get();
+
+        // final var scale = this.scale.get();
         final var opacity = this.opacity.get();
         for (var i = 0; i < s; i++)
             for (var j = 0; j < s; j++) {
                 final var color = colors[i][j];
+                if (color == null)
+                    continue;
                 r.quad(x + i * scale, y + j * scale,
                         scale, scale,
                         color.a(opacity));
             }
+
+        if(true)
+            return;
+
+        assert false : "how what does ????? ";
+        final var rs = new MapRenderState();
+        final var matrices = r.drawContext.getMatrices();
+        final VertexConsumerProvider.Immediate consumer = mc.getBufferBuilders().getEntityVertexConsumers();
+        final MapState mapState = FilledMapItem.getMapState(new MapIdComponent(0), mc.world);
+        if (mapState == null)
+            return;
+        matrices.push();
+        matrices.translate(x, y, 0);
+        matrices.scale((float) scale, (float) scale, 0);
+        matrices.translate(8, 8, 0);
+        mc.getMapRenderer().update(new MapIdComponent(0), MapState.of((byte) 1, false, mc.world.getRegistryKey()), rs);
+        mc.getMapRenderer().draw(rs, matrices, consumer, false, 0xF000F0);
+        consumer.draw();
+        matrices.pop();
+
     }
 }
