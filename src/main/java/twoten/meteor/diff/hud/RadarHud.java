@@ -7,7 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import meteordevelopment.meteorclient.MeteorClient;
+import meteordevelopment.meteorclient.events.world.BlockUpdateEvent;
 import meteordevelopment.meteorclient.events.world.ChunkDataEvent;
+import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -17,11 +19,6 @@ import meteordevelopment.meteorclient.systems.hud.HudElementInfo;
 import meteordevelopment.meteorclient.systems.hud.HudRenderer;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.client.render.MapRenderState;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.component.type.MapIdComponent;
-import net.minecraft.item.FilledMapItem;
-import net.minecraft.item.map.MapState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
@@ -85,6 +82,7 @@ public class RadarHud extends HudElement {
             .build());
 
     private Color[][][][] data;
+    private boolean update = false;
 
     public RadarHud() {
         super(INFO);
@@ -108,17 +106,33 @@ public class RadarHud extends HudElement {
     }
 
     @EventHandler
+    private void onBlockUpdate(final BlockUpdateEvent event) {
+        update = true;
+    }
+
+    @EventHandler
     private void onChunkData(final ChunkDataEvent event) {
+        update();
+    }
+
+    @EventHandler
+    private void onTick(final TickEvent.Post event) {
+        if (update) {
+            update();
+            update = false;
+        }
+    }
+
+    private void update() {
+        if (!isActive())
+            return;
+
+        final var chunkpos = new ChunkPos(
+                (int) mc.player.getPos().x / s - data.length / 2,
+                (int) mc.player.getPos().z / s - data[0].length / 2);
         for (var x = 0; x < data.length; x++)
-            for (var z = 0; z < data[x].length; z++) {
-                final var chunkpos = new ChunkPos(
-                        (int) mc.player.getPos().x / s + x - data.length / 2,
-                        (int) mc.player.getPos().z / s + z - data[x].length / 2);
-                if (event.chunk().getPos().equals(chunkpos)) {
-                    data[x][z] = map(event.chunk());
-                    return;
-                }
-            }
+            for (var z = 0; z < data[x].length; z++)
+                data[x][z] = map(mc.world.getChunk(chunkpos.x + x, chunkpos.z + z));
     }
 
     private Color[][] loadChunk(final Path p) {
@@ -140,9 +154,7 @@ public class RadarHud extends HudElement {
     }
 
     private void renderChunk(final HudRenderer r, final double x, final double y, final Color[][] colors) {
-        final var scale = (double) this.scale.get();
-
-        // final var scale = this.scale.get();
+        final var scale = this.scale.get();
         final var opacity = this.opacity.get();
         for (var i = 0; i < s; i++)
             for (var j = 0; j < s; j++) {
@@ -153,25 +165,5 @@ public class RadarHud extends HudElement {
                         scale, scale,
                         color.a(opacity));
             }
-
-        if(true)
-            return;
-
-        assert false : "how what does ????? ";
-        final var rs = new MapRenderState();
-        final var matrices = r.drawContext.getMatrices();
-        final VertexConsumerProvider.Immediate consumer = mc.getBufferBuilders().getEntityVertexConsumers();
-        final MapState mapState = FilledMapItem.getMapState(new MapIdComponent(0), mc.world);
-        if (mapState == null)
-            return;
-        matrices.push();
-        matrices.translate(x, y, 0);
-        matrices.scale((float) scale, (float) scale, 0);
-        matrices.translate(8, 8, 0);
-        mc.getMapRenderer().update(new MapIdComponent(0), MapState.of((byte) 1, false, mc.world.getRegistryKey()), rs);
-        mc.getMapRenderer().draw(rs, matrices, consumer, false, 0xF000F0);
-        consumer.draw();
-        matrices.pop();
-
     }
 }
