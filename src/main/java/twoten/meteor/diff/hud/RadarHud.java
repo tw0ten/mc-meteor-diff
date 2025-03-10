@@ -22,7 +22,6 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.Chunk;
 import twoten.meteor.diff.Addon;
-import twoten.meteor.diff.Diff;
 
 public class RadarHud extends HudElement {
     public static final HudElementInfo<RadarHud> INFO = new HudElementInfo<>(
@@ -45,15 +44,21 @@ public class RadarHud extends HudElement {
         return out;
     }
 
+    private int chunks;
+    private Color[][] data;
+    private ChunkPos refPos;
+    private boolean update = false;
+
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
-    private final Setting<Integer> chunks = sgGeneral.add(new IntSetting.Builder()
-            .name("chunks")
-            .description("The width and height of the radar in chunks")
-            .defaultValue(11)
+    private final Setting<Integer> size = sgGeneral.add(new IntSetting.Builder()
+            .name("size")
+            .description("The width and height of the radar in blocks.")
+            .defaultValue(11 * s)
             .min(1)
             .onChanged((i) -> {
-                data = new Color[i][i][s][s];
+                chunks = i / s + 3;
+                data = new Color[chunks * s][chunks * s];
                 calculateSize();
                 update = true;
             })
@@ -74,21 +79,10 @@ public class RadarHud extends HudElement {
             .sliderRange(0, 0xFF)
             .build());
 
-    private final Setting<Integer> opacity2 = sgColor.add(new IntSetting.Builder()
-            .name("opacity2")
-            .description("Opacity 2: electric boogaloo.")
-            .defaultValue(195)
-            .range(0, 0xFF)
-            .sliderRange(0, 0xFF)
-            .build());
-
     private final Setting<SettingColor> selfColor = sgColor.add(new ColorSetting.Builder()
             .name("self")
             .defaultValue(Color.WHITE)
             .build());
-
-    private Color[][][][] data; // TODO: blocks not chunks
-    private boolean update = false;
 
     public RadarHud() {
         super(INFO);
@@ -98,24 +92,28 @@ public class RadarHud extends HudElement {
 
     @Override
     public void render(final HudRenderer r) {
+        final var size = this.size.get();
+        final var opacity = this.opacity.get();
         final var scale = this.scale.get();
-        for (var x = 0; x < data.length; x++)
-            for (var z = 0; z < data[x].length; z++) {
-                final var chunk = data[x][z];
-                final var opacity = (x + z) % 2 == 0 ? this.opacity.get() : this.opacity2.get();
-                Diff.renderChunk(r, getX() + x * s * scale, getY() + z * s * scale, scale, opacity, chunk);
+        for (var x = 0; x < size; x++)
+            for (var z = 0; z < size; z++) {
+                Color color;
+                try {
+                    color = data[s + x + mc.player.getBlockX() - refPos.x * s - 1][s + z + mc.player.getBlockZ()
+                            - refPos.z * s - 1];
+                    if (color == null)
+                        continue;
+                } catch (Exception e) {
+                    continue;
+                }
+                r.quad(getX() + x * scale, getY() + z * scale, scale, scale, color.a(opacity));
             }
-        if (true)
-            return;
-        final var x = getX() + scale * (data.length / 2 * s + mc.player.getPos().x % s);
-        final var z = getY() + scale * (data[0].length / 2 * s + mc.player.getPos().z % s);
-        r.triangle(x, z, x + 4, z + 4, x + 4, z + 0, selfColor.get());
     }
 
     private void calculateSize() {
-        final var chunks = this.chunks.get();
         final var scale = this.scale.get();
-        setSize(s * scale * chunks, s * scale * chunks);
+        final var size = this.size.get();
+        setSize(scale * size, scale * size);
     }
 
     @EventHandler
@@ -131,8 +129,8 @@ public class RadarHud extends HudElement {
     @EventHandler
     private void onTick(final TickEvent.Post event) {
         if (update && mc.world != null) {
-            update();
             update = false;
+            update();
         }
     }
 
@@ -140,12 +138,16 @@ public class RadarHud extends HudElement {
         if (!isActive())
             return;
 
-        final var chunkpos = new ChunkPos(
-                mc.player.getChunkPos().x - chunks.get() / 2,
-                mc.player.getChunkPos().z - chunks.get() / 2);
-        for (var x = 0; x < data.length; x++)
-            for (var z = 0; z < data[x].length; z++)
-                data[x][z] = map(mc.world.getChunk(chunkpos.x + x, chunkpos.z + z));
+        refPos = new ChunkPos(
+                mc.player.getChunkPos().x - chunks / 2,
+                mc.player.getChunkPos().z - chunks / 2);
+        for (var x = 0; x < chunks; x++)
+            for (var z = 0; z < chunks; z++) {
+                final var c = map(mc.world.getChunk(refPos.x + x, refPos.z + z));
+                for (var nx = 0; nx < s; nx++)
+                    for (var nz = 0; nz < s; nz++)
+                        data[x * s + nx][z * s + nz] = c[nx][nz];
+            }
+        refPos = mc.player.getChunkPos();
     }
-
 }
