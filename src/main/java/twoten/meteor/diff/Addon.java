@@ -7,6 +7,7 @@ import com.mojang.logging.LogUtils;
 import meteordevelopment.meteorclient.addons.GithubRepo;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.commands.Commands;
+import meteordevelopment.meteorclient.gui.tabs.Tabs;
 import meteordevelopment.meteorclient.systems.hud.Hud;
 import meteordevelopment.meteorclient.systems.hud.HudGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
@@ -16,6 +17,7 @@ import twoten.meteor.diff.hud.DiffHud;
 import twoten.meteor.diff.hud.RadarHud;
 import twoten.meteor.diff.modules.SaveDiff;
 import twoten.meteor.diff.modules.VisualDiff;
+import twoten.meteor.diff.tabs.MapTab;
 
 public class Addon extends MeteorAddon {
     public static final Logger LOG = LogUtils.getLogger();
@@ -36,6 +38,9 @@ public class Addon extends MeteorAddon {
         // HUD
         Hud.get().register(DiffHud.INFO);
         Hud.get().register(RadarHud.INFO);
+
+        // Tabs
+        Tabs.add(new MapTab());
     }
 
     @Override

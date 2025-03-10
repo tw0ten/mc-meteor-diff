@@ -1,10 +1,9 @@
 package twoten.meteor.diff.modules;
 
-import static twoten.meteor.diff.Diff.s;
-
 import static java.nio.file.Files.delete;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.write;
+import static twoten.meteor.diff.Diff.s;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,11 +22,12 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.world.chunk.Chunk;
 import twoten.meteor.diff.Addon;
-import twoten.meteor.diff.hud.RadarHud;
 import twoten.meteor.diff.Diff;
 import twoten.meteor.diff.Diff.paths;
+import twoten.meteor.diff.hud.RadarHud;
 
 public class SaveDiff extends Module {
+    public static final int colorBytes = Integer.BYTES - 1;
 
     private static boolean mkdirs(final Path path) {
         return path.toFile().mkdirs();
@@ -72,7 +72,7 @@ public class SaveDiff extends Module {
 
     private final Setting<Boolean> saveMap = sgSave.add(new BoolSetting.Builder()
             .name("save-map")
-            .description("Save the map view.")
+            .description("Save map view.")
             .defaultValue(true)
             .build());
 
@@ -96,25 +96,27 @@ public class SaveDiff extends Module {
             .defaultValue(false)
             .build());
 
-    private final Setting<Integer> maxDepth = sgStorage.add(new IntSetting.Builder().name("max-depth")
+    private final Setting<Integer> maxDepth = sgStorage.add(new IntSetting.Builder()
+            .name("max-depth")
             .description("Maximum number of unique chunk versions, 0 to disable.")
             .min(0)
             .defaultValue(0)
             .sliderMin(1)
             .build());
 
-    private final Setting<Integer> minTime = sgStorage.add(new IntSetting.Builder().name("min-time")
+    private final Setting<Integer> minTime = sgStorage.add(new IntSetting.Builder()
+            .name("min-time")
             .description("The time (seconds) to wait before saving to a new iteration instead of overwriting the last.")
             .defaultValue(60 * 60)
             .min(1)
             .sliderMax(5 * 60 * 60)
             .build());
 
+    // TODO: wipe data button
+
     public SaveDiff() {
         super(Addon.CATEGORY, "save-diff", "Download chunks.");
     }
-
-    // TODO: wipe data button
 
     @EventHandler
     private void onChunkData(final ChunkDataEvent event) {
@@ -130,7 +132,6 @@ public class SaveDiff extends Module {
         final var file = p.resolve(String.valueOf(time));
         final var latest = p.resolve(paths.latest);
 
-        // TODO: RegionFile?
         try {
             if (exists(latest)) {
                 final var realLatest = follow(latest);
@@ -153,6 +154,7 @@ public class SaveDiff extends Module {
 
                 if (saveMap.get())
                     write(file.resolve(paths.chunk.map), map(chunk));
+                // TODO: RegionFile?
                 if (saveBlocks.get())
                     write(file.resolve(paths.chunk.blocks), new byte[0]);
                 if (saveEntities.get())
@@ -165,8 +167,6 @@ public class SaveDiff extends Module {
             info(e.getClass().getSimpleName() + " " + e.getMessage());
         }
     }
-
-    public static final int colorBytes = Integer.BYTES - 1;
 
     private byte[] map(final Chunk c) {
         final var colors = RadarHud.map(c);
