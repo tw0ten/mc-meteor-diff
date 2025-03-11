@@ -13,6 +13,7 @@ import java.util.Arrays;
 
 import org.apache.commons.io.FileUtils;
 
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.ChunkDataEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -20,11 +21,11 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.network.packet.s2c.play.UnloadChunkS2CPacket;
 import net.minecraft.world.chunk.Chunk;
 import twoten.meteor.diff.Addon;
 import twoten.meteor.diff.Diff;
 import twoten.meteor.diff.Diff.paths;
-import twoten.meteor.diff.hud.RadarHud;
 
 public class SaveDiff extends Module {
     public static final int colorBytes = Integer.BYTES - 1;
@@ -118,12 +119,7 @@ public class SaveDiff extends Module {
         super(Addon.CATEGORY, "save-diff", "Download chunks.");
     }
 
-    @EventHandler
-    private void onChunkData(final ChunkDataEvent event) {
-        if (!onLoad.get())
-            return;
-
-        final var chunk = event.chunk();
+    private void save(final Chunk chunk) {
         final var pos = chunk.getPos();
         final var hash = hash(chunk);
         final var time = System.currentTimeMillis();
@@ -168,8 +164,24 @@ public class SaveDiff extends Module {
         }
     }
 
+    @EventHandler
+    private void onChunkData(final ChunkDataEvent event) {
+        if (!onLoad.get())
+            return;
+        save(event.chunk());
+    }
+
+    @EventHandler
+    private void onPacketReceive(final PacketEvent.Receive event) {
+        if (!onUnload.get())
+            return;
+        if (!(event.packet instanceof final UnloadChunkS2CPacket p))
+            return;
+        save(mc.world.getChunk(p.pos().x, p.pos().z));
+    }
+
     private byte[] map(final Chunk c) {
-        final var colors = RadarHud.map(c);
+        final var colors = Diff.map(c);
         final var out = new byte[colors.length * colors[0].length * colorBytes];
 
         for (var x = 0; x < s; x++) {

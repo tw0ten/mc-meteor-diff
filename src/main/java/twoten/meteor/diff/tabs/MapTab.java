@@ -5,53 +5,33 @@ import static twoten.meteor.diff.Diff.s;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.lwjgl.glfw.GLFW;
 
 import meteordevelopment.meteorclient.gui.GuiTheme;
-import meteordevelopment.meteorclient.gui.GuiThemes;
 import meteordevelopment.meteorclient.gui.tabs.Tab;
 import meteordevelopment.meteorclient.gui.tabs.WindowTabScreen;
 import meteordevelopment.meteorclient.settings.KeybindSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.settings.Settings;
-import meteordevelopment.meteorclient.systems.hud.HudRenderer;
-import meteordevelopment.meteorclient.utils.PostInit;
+import meteordevelopment.meteorclient.systems.System;
+import meteordevelopment.meteorclient.systems.Systems;
 import meteordevelopment.meteorclient.utils.misc.Keybind;
 import meteordevelopment.meteorclient.utils.misc.NbtUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.ChunkPos;
-import twoten.meteor.diff.Diff;
 import twoten.meteor.diff.Diff.paths;
 import twoten.meteor.diff.modules.SaveDiff;
 
 public class MapTab extends Tab {
-    private static class MapScreen extends Screen {
-        private int[][] loadChunk(final ChunkPos p) {
-            final var chunk = new int[s][s];
-            try {
-                final var bytes = Files.readAllBytes(this.p
-                        .resolve(p.x + " " + p.z)
-                        .resolve(paths.latest)
-                        .resolve(paths.chunk.map));
-                for (var x = 0; x < chunk.length; x++)
-                    for (var z = 0; z < chunk[x].length; z++) {
-                        final var i = (x * s + z) * SaveDiff.colorBytes;
-                        chunk[x][z] = new Color(
-                                unsign(bytes[i + 0]),
-                                unsign(bytes[i + 1]),
-                                unsign(bytes[i + 2]))
-                                .getPacked();
-                    }
-            } catch (final Exception e) {
-                e.printStackTrace();
-            }
-            return chunk;
+    private static class MapSys extends System<MapSys> {
+        public static MapSys get() {
+            return Systems.get(MapSys.class);
         }
 
         private static int unsign(final byte b) {
@@ -67,46 +47,93 @@ public class MapTab extends Tab {
         @SuppressWarnings("unused")
         private final Setting<Keybind> keybind = sgKeybind.add(new KeybindSetting.Builder()
                 .name("bind")
-                .defaultValue(Keybind.fromKey(GLFW.GLFW_KEY_M))
+                .defaultValue(Keybind.fromKey(GLFW.GLFW_KEY_M)) // it works in the chat window that is so stupid how do
+                                                                // i fix it
+                                                                // it also doesnt savev
+                                                                // how do i registe ra new system???
+                                                                // or where do i store it otherwise
                 .action(this::open)
                 .build());
 
-        private Path p;
-        private int[][][][] chunks;
         private int x, z;
-        private int scale = 2;
 
-        protected MapScreen() {
-            super(Text.of("Map"));
+        private final int scale = 2;
+        private final Thread chunkLoader = new Thread() {
+            public Path p;
+            private final List<ChunkPos> chunks = new ArrayList<>();
+
+            @Override
+            public void run() {
+                for (final var c : chunks)
+                    loadChunk(c);
+                chunks.clear();
+            }
+
+            private int[][] loadChunk(final ChunkPos p) {
+                final var chunk = new int[s][s];
+                try {
+                    final var bytes = Files.readAllBytes(this.p
+                            .resolve(p.x + " " + p.z)
+                            .resolve(paths.latest)
+                            .resolve(paths.chunk.map));
+                    for (var x = 0; x < chunk.length; x++)
+                        for (var z = 0; z < chunk[x].length; z++) {
+                            final var i = (x * s + z) * SaveDiff.colorBytes;
+                            chunk[x][z] = new Color(
+                                    unsign(bytes[i + 0]),
+                                    unsign(bytes[i + 1]),
+                                    unsign(bytes[i + 2]))
+                                    .getPacked();
+                        }
+                } catch (final Exception e) {
+                    e.printStackTrace();
+                }
+                return chunk;
+            }
+
+        };
+
+        public MapSys() {
+            super("diff-map");
         }
 
         @Override
-        public void render(final DrawContext context, final int mouseX, final int mouseY, final float delta) {
-            super.render(context, mouseX, mouseY, delta);
-            HudRenderer.INSTANCE.drawContext = context;
-            Diff.renderChunk(context, 0, 0, scale, chunks[0][0]);
+        public NbtCompound toTag() {
+            final NbtCompound tag = new NbtCompound();
+
+            tag.putInt("__version__", 1);
+
+            tag.put("settings", settings.toTag());
+
+            return tag;
+        }
+
+        @Override
+        public MapSys fromTag(final NbtCompound tag) {
+            if (!tag.contains("__version__")) {
+                return this;
+            }
+
+            settings.fromTag(tag.getCompound("settings"));
+
+            return this;
         }
 
         private void open() {
             if (mc.world == null)
                 return;
-            p = Diff.dimPath();
+            // chunkLoader.p = Diff.dimPath();
             final var pos = mc.player.getBlockPos();
             this.x = pos.getX();
             this.z = pos.getZ();
-            mc.setScreen(this);
-            update();
-        }
-
-        private void update() {
-            final var w = mc.getWindow().getWidth();
-            final var h = mc.getWindow().getHeight();
-            chunks = new int[1][1][][];
-            chunks[0][0] = loadChunk(new ChunkPos(0, 0));
+            // mc.setScreen();
+            // update();
         }
     }
 
     private static class TabScreen extends WindowTabScreen {
+        private final MapSys map = MapSys.get();
+
         public TabScreen(final GuiTheme theme, final Tab tab) {
             super(theme, tab);
             map.settings.onActivated();
@@ -134,13 +161,6 @@ public class MapTab extends Tab {
 
             return false;
         }
-    }
-
-    private static final MapScreen map = new MapScreen();
-
-    @PostInit
-    public static void postInit() {
-        new MapTab().createScreen(GuiThemes.get());
     }
 
     public MapTab() {

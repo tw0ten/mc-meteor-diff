@@ -3,13 +3,17 @@ package twoten.meteor.diff;
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.systems.hud.HudRenderer;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.Heightmap;
 
 public class Diff {
     public interface paths {
@@ -58,5 +62,25 @@ public class Diff {
                 final var ry = y + j * scale;
                 r.fill(rx, ry, rx + scale, ry + scale, colors[i][j]);
             }
+    }
+
+    public static Map<ChunkPos, Color[][]> chunks = new HashMap<>();
+
+    public static Color[][] map(final Chunk c) {
+        final var out = new Color[s][s];
+
+        final var height = c.getHeightmap(Heightmap.Type.WORLD_SURFACE);
+        for (var x = 0; x < s; x++)
+            for (var z = 0; z < s; z++) {
+                final var p = c.getPos().getBlockPos(x, height.get(x, z) - 1, z);
+                final var block = c.getBlockState(p);
+                out[x][z] = new Color(block.getMapColor(mc.world, p).color);
+            }
+
+        return out;
+    }
+
+    public static void cache(Chunk c) {
+        chunks.put(c.getPos(), map(c));
     }
 }
