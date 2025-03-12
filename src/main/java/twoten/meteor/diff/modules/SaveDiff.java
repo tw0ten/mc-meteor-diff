@@ -113,18 +113,15 @@ public class SaveDiff extends Module {
             .sliderMax(5 * 60 * 60)
             .build());
 
-    // TODO: wipe data button
-
     public SaveDiff() {
         super(Addon.CATEGORY, "save-diff", "Download chunks.");
     }
 
     private void save(final Chunk chunk) {
-        final var pos = chunk.getPos();
-        final var hash = hash(chunk);
         final var time = System.currentTimeMillis();
+        final var hash = hash(chunk);
 
-        final var p = Diff.dimPath().resolve(pos.x + " " + pos.z);
+        final var p = Diff.chunkPath(chunk.getPos());
         final var file = p.resolve(String.valueOf(time));
         final var latest = p.resolve(paths.latest);
 
@@ -150,7 +147,6 @@ public class SaveDiff extends Module {
 
                 if (saveMap.get())
                     write(file.resolve(paths.chunk.map), map(chunk));
-                // TODO: RegionFile?
                 if (saveBlocks.get())
                     write(file.resolve(paths.chunk.blocks), new byte[0]);
                 if (saveEntities.get())
@@ -182,7 +178,7 @@ public class SaveDiff extends Module {
 
     private byte[] map(final Chunk c) {
         final var colors = Diff.map(c);
-        final var out = new byte[colors.length * colors[0].length * colorBytes];
+        final var out = new byte[s * s * colorBytes];
 
         for (var x = 0; x < s; x++) {
             for (var z = 0; z < s; z++) {

@@ -29,9 +29,11 @@ import twoten.meteor.diff.Diff.paths;
 import twoten.meteor.diff.modules.SaveDiff;
 
 public class MapTab extends Tab {
-    private static class MapSys extends System<MapSys> {
-        public static MapSys get() {
-            return Systems.get(MapSys.class);
+    private static class Map extends System<Map> {
+        public static Map get() {
+            if (true)
+                return new Map();
+            return Systems.get(Map.class); // how do i add a system?????????/
         }
 
         private static int unsign(final byte b) {
@@ -47,11 +49,7 @@ public class MapTab extends Tab {
         @SuppressWarnings("unused")
         private final Setting<Keybind> keybind = sgKeybind.add(new KeybindSetting.Builder()
                 .name("bind")
-                .defaultValue(Keybind.fromKey(GLFW.GLFW_KEY_M)) // it works in the chat window that is so stupid how do
-                                                                // i fix it
-                                                                // it also doesnt savev
-                                                                // how do i registe ra new system???
-                                                                // or where do i store it otherwise
+                .defaultValue(Keybind.fromKey(GLFW.GLFW_KEY_M))
                 .action(this::open)
                 .build());
 
@@ -93,7 +91,7 @@ public class MapTab extends Tab {
 
         };
 
-        public MapSys() {
+        public Map() {
             super("diff-map");
         }
 
@@ -109,7 +107,7 @@ public class MapTab extends Tab {
         }
 
         @Override
-        public MapSys fromTag(final NbtCompound tag) {
+        public Map fromTag(final NbtCompound tag) {
             if (!tag.contains("__version__")) {
                 return this;
             }
@@ -132,7 +130,7 @@ public class MapTab extends Tab {
     }
 
     private static class TabScreen extends WindowTabScreen {
-        private final MapSys map = MapSys.get();
+        private final Map map = Map.get();
 
         public TabScreen(final GuiTheme theme, final Tab tab) {
             super(theme, tab);

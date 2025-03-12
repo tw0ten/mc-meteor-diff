@@ -18,8 +18,8 @@ public class DiffCommand extends Command {
             return SINGLE_SUCCESS;
         });
 
-        builder.then(literal("name").then(argument("nameArgument", StringArgumentType.word()).executes(context -> {
-            final String argument = StringArgumentType.getString(context, "nameArgument");
+        builder.then(literal("clean").then(argument("server", StringArgumentType.word()).executes(context -> {
+            final var argument = StringArgumentType.getString(context, "server");
             info("hi, " + argument);
             return SINGLE_SUCCESS;
         })));

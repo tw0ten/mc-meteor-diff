@@ -12,8 +12,8 @@ import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.chunk.Chunk;
 
 public class Diff {
     public interface paths {
@@ -31,12 +31,18 @@ public class Diff {
 
     public static final Path root = MeteorClient.FOLDER.toPath().resolve("diff");
 
+    public static Map<Long, Color[][]> chunks = new HashMap<>();
+
     public static Path worldPath() {
         return root.resolve(Utils.getFileWorldName());
     }
 
     public static Path dimPath() {
         return worldPath().resolve(mc.world.getRegistryKey().getValue().toString());
+    }
+
+    public static Path chunkPath(final ChunkPos p) {
+        return dimPath().resolve(p.x + " " + p.z);
     }
 
     public static void renderChunk(final HudRenderer r,
@@ -64,14 +70,13 @@ public class Diff {
             }
     }
 
-    public static Map<ChunkPos, Color[][]> chunks = new HashMap<>();
-
     public static Color[][] map(final Chunk c) {
         final var out = new Color[s][s];
 
         final var height = c.getHeightmap(Heightmap.Type.WORLD_SURFACE);
-        for (var x = 0; x < s; x++)
-            for (var z = 0; z < s; z++) {
+        // TODO: nether
+        for (var x = 0; x < out.length; x++)
+            for (var z = 0; z < out[x].length; z++) {
                 final var p = c.getPos().getBlockPos(x, height.get(x, z) - 1, z);
                 final var block = c.getBlockState(p);
                 out[x][z] = new Color(block.getMapColor(mc.world, p).color);
@@ -80,7 +85,11 @@ public class Diff {
         return out;
     }
 
-    public static void cache(Chunk c) {
-        chunks.put(c.getPos(), map(c));
+    public static void cache(final Chunk c) {
+        chunks.put(c.getPos().toLong(), map(c));
+    }
+
+    public static Color[][] cache(final ChunkPos c) {
+        return chunks.get(c.toLong());
     }
 }

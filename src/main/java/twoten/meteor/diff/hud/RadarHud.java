@@ -39,7 +39,7 @@ public class RadarHud extends HudElement {
     private int chunks;
     private Color[][][][] data;
     private ChunkPos refPos = ChunkPos.ORIGIN;
-    private List<Chunk> update = new ArrayList<>();
+    private final List<Chunk> update = new ArrayList<>();
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
@@ -94,14 +94,13 @@ public class RadarHud extends HudElement {
             for (var z = 0; z < size; z++) {
                 final var ax = x + mc.player.getBlockX() - size / 2 - refPos.getStartPos().getX();
                 final var az = z + mc.player.getBlockZ() - size / 2 - refPos.getStartPos().getZ();
-                try {
-                    final var color = data[ax / s][az / s][ax % s][az % s];
-                    if (color == null)
-                        continue;
-                    r.quad(getX() + x * scale, getY() + z * scale, scale, scale, color.a(opacity));
-                } catch (Exception e) {
-                    // TODO: this is probably bad right?
-                }
+                if (ax < 0 || az < 0 || ax >= data.length * s || az >= data[0].length * s)
+                    continue;
+                final var chunk = data[ax / s][az / s];
+                if (chunk == null)
+                    continue;
+                final var color = chunk[ax % s][az % s];
+                r.quad(getX() + x * scale, getY() + z * scale, scale, scale, color.a(opacity));
             }
     }
 
@@ -119,10 +118,10 @@ public class RadarHud extends HudElement {
     }
 
     @EventHandler
-    private void onPacketReceive(PacketEvent.Receive event) {
-        if (!(event.packet instanceof UnloadChunkS2CPacket p))
+    private void onPacketReceive(final PacketEvent.Receive event) {
+        if (!(event.packet instanceof final UnloadChunkS2CPacket p))
             return;
-        Diff.chunks.remove(p.pos());
+        Diff.chunks.remove(p.pos().toLong());
     }
 
     @EventHandler
@@ -134,7 +133,7 @@ public class RadarHud extends HudElement {
     }
 
     @EventHandler
-    private void onGameLeft(GameLeftEvent e) {
+    private void onGameLeft(final GameLeftEvent e) {
         update.clear();
         Diff.chunks.clear();
     }
@@ -156,6 +155,6 @@ public class RadarHud extends HudElement {
                 p.z - chunks / 2);
         for (var x = 0; x < chunks; x++)
             for (var z = 0; z < chunks; z++)
-                data[x][z] = Diff.chunks.get(new ChunkPos(refPos.x + x, refPos.z + z));
+                data[x][z] = Diff.cache(new ChunkPos(refPos.x + x, refPos.z + z));
     }
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "diff",
+  "id": "meteor-diff",
   "version": "${version}",
   "name": "Diff",
   "description": "An addon for Meteor Client.",
@@ -8,7 +8,7 @@
     "2(10"
   ],
   "contact": {
-    "repo": "https://github.com/tw0ten/meteor-diff"
+    "repo": "https://github.com/tw0ten/mc-meteor-diff"
   },
   "icon": "assets/icon.png",
   "environment": "client",

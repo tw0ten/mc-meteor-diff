@@ -8,8 +8,6 @@ import meteordevelopment.meteorclient.addons.GithubRepo;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.commands.Commands;
 import meteordevelopment.meteorclient.gui.tabs.Tabs;
-import meteordevelopment.meteorclient.systems.System;
-import meteordevelopment.meteorclient.systems.Systems;
 import meteordevelopment.meteorclient.systems.hud.Hud;
 import meteordevelopment.meteorclient.systems.hud.HudGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
@@ -28,7 +26,7 @@ public class Addon extends MeteorAddon {
 
     @Override
     public void onInitialize() {
-        LOG.info("Initializing " + getPackage());
+        LOG.info("Initializing " + name);
 
         // Modules
         Modules.get().add(new VisualDiff());
