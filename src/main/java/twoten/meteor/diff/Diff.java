@@ -3,14 +3,10 @@ package twoten.meteor.diff;
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 
 import meteordevelopment.meteorclient.MeteorClient;
-import meteordevelopment.meteorclient.systems.hud.HudRenderer;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.Chunk;
@@ -19,6 +15,7 @@ public class Diff {
     public interface paths {
         interface chunk {
             Path map = Path.of("map");
+            Path isNew = Path.of("new");
             Path blocks = Path.of("blocks");
             Path entities = Path.of("entities");
         }
@@ -31,8 +28,6 @@ public class Diff {
 
     public static final Path root = MeteorClient.FOLDER.toPath().resolve("diff");
 
-    public static Map<Long, Color[][]> chunks = new HashMap<>();
-
     public static Path worldPath() {
         return root.resolve(Utils.getFileWorldName());
     }
@@ -43,31 +38,6 @@ public class Diff {
 
     public static Path chunkPath(final ChunkPos p) {
         return dimPath().resolve(p.x + " " + p.z);
-    }
-
-    public static void renderChunk(final HudRenderer r,
-            final double x, final double y,
-            final double scale,
-            final int opacity, final Color[][] colors) {
-        for (var i = 0; i < s; i++)
-            for (var j = 0; j < s; j++) {
-                final var color = colors[i][j];
-                if (color == null)
-                    return;
-                r.quad(x + i * scale, y + j * scale, scale, scale, color.a(opacity));
-            }
-    }
-
-    public static void renderChunk(final DrawContext r,
-            final int x, final int y,
-            final int scale,
-            final int[][] colors) {
-        for (var i = 0; i < s; i++)
-            for (var j = 0; j < s; j++) {
-                final var rx = x + i * scale;
-                final var ry = y + j * scale;
-                r.fill(rx, ry, rx + scale, ry + scale, colors[i][j]);
-            }
     }
 
     public static Color[][] map(final Chunk c) {
@@ -85,11 +55,4 @@ public class Diff {
         return out;
     }
 
-    public static void cache(final Chunk c) {
-        chunks.put(c.getPos().toLong(), map(c));
-    }
-
-    public static Color[][] cache(final ChunkPos c) {
-        return chunks.get(c.toLong());
-    }
 }

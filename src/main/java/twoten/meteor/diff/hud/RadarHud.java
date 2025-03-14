@@ -3,8 +3,10 @@ package twoten.meteor.diff.hud;
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 import static twoten.meteor.diff.Diff.s;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
@@ -36,10 +38,13 @@ public class RadarHud extends HudElement {
             "Diff minimap.",
             RadarHud::new);
 
+    // TODO: textures or something or a shader idk
+    private final Map<Long, Color[][]> cache = new HashMap<>();
+
     private int chunks;
     private Color[][][][] data;
     private ChunkPos refPos = ChunkPos.ORIGIN;
-    private final List<Chunk> update = new ArrayList<>();
+    private final Set<Chunk> update = new HashSet<>();
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
@@ -57,9 +62,18 @@ public class RadarHud extends HudElement {
             })
             .build());
 
-    private final Setting<Double> scale = sgGeneral.add(new DoubleSetting.Builder()
+    private final SettingGroup sgScale = settings.createGroup("Scale");
+
+    private final Setting<Double> scale = sgScale.add(new DoubleSetting.Builder()
             .name("scale")
+            .description("The global scale.")
             .defaultValue(1)
+            .onChanged((i) -> calculateSize())
+            .build());
+
+    private final Setting<Double> scaleSelf = sgScale.add(new DoubleSetting.Builder()
+            .name("self")
+            .defaultValue(2)
             .onChanged((i) -> calculateSize())
             .build());
 
@@ -79,22 +93,24 @@ public class RadarHud extends HudElement {
 
     public RadarHud() {
         super(INFO);
-
+        calculateSize();
         MeteorClient.EVENT_BUS.subscribe(this);
     }
 
     @Override
     public void render(final HudRenderer r) {
-        if (mc.player == null)
+        if (mc.world == null)
             return;
+
         final var size = this.size.get();
         final var opacity = this.opacity.get();
         final var scale = this.scale.get();
+
         for (var x = 0; x < size; x++)
             for (var z = 0; z < size; z++) {
                 final var ax = x + mc.player.getBlockX() - size / 2 - refPos.getStartPos().getX();
                 final var az = z + mc.player.getBlockZ() - size / 2 - refPos.getStartPos().getZ();
-                if (ax < 0 || az < 0 || ax >= data.length * s || az >= data[0].length * s)
+                if (ax < 0 || az < 0 || ax >= chunks * s || az >= chunks * s)
                     continue;
                 final var chunk = data[ax / s][az / s];
                 if (chunk == null)
@@ -102,6 +118,30 @@ public class RadarHud extends HudElement {
                 final var color = chunk[ax % s][az % s];
                 r.quad(getX() + x * scale, getY() + z * scale, scale, scale, color.a(opacity));
             }
+
+        {
+            final var mx = getX() + getWidth() / 2;
+            final var my = getY() + getHeight() / 2;
+            final var s = scale * scaleSelf.get();
+            final var angle = mc.player.headYaw / 180 * Math.PI;
+            final var vertices = new double[][] {
+                    { 0, s * 2 },
+                    { -s, -s },
+                    { s, -s }
+            };
+            r.triangle(
+                    mx + (vertices[0][0] * scale * Math.cos(angle) - vertices[0][1] * scale * Math.sin(angle)),
+                    my + (vertices[0][0] * scale * Math.sin(angle) + vertices[0][1] * scale * Math.cos(angle)),
+                    mx + (vertices[1][0] * scale * Math.cos(angle) - vertices[1][1] * scale * Math.sin(angle)),
+                    my + (vertices[1][0] * scale * Math.sin(angle) + vertices[1][1] * scale * Math.cos(angle)),
+                    mx + (vertices[2][0] * scale * Math.cos(angle) - vertices[2][1] * scale * Math.sin(angle)),
+                    my + (vertices[2][0] * scale * Math.sin(angle) + vertices[2][1] * scale * Math.cos(angle)),
+                    selfColor.get());
+        }
+    }
+
+    private void cache(final Chunk c) {
+        cache.put(c.getPos().toLong(), Diff.map(c));
     }
 
     private void calculateSize() {
@@ -119,30 +159,34 @@ public class RadarHud extends HudElement {
 
     @EventHandler
     private void onPacketReceive(final PacketEvent.Receive event) {
+        if (!isActive())
+            return;
         if (!(event.packet instanceof final UnloadChunkS2CPacket p))
             return;
-        Diff.chunks.remove(p.pos().toLong());
+        cache.remove(p.pos().toLong());
     }
 
     @EventHandler
     private void onChunkData(final ChunkDataEvent event) {
         if (!isActive())
             return;
-        Diff.cache(event.chunk());
+        update.add(event.chunk());
+        cache(event.chunk());
         update();
     }
 
     @EventHandler
     private void onGameLeft(final GameLeftEvent e) {
         update.clear();
-        Diff.chunks.clear();
+        cache.clear();
     }
 
     @EventHandler
     private void onTick(final TickEvent.Post event) {
+        if (!isActive())
+            return;
         if (!update.isEmpty()) {
-            for (final var c : update)
-                Diff.cache(c);
+            update.forEach(this::cache);
             update.clear();
             update();
         }
@@ -150,11 +194,9 @@ public class RadarHud extends HudElement {
 
     private void update() {
         final var p = mc.player.getChunkPos();
-        refPos = new ChunkPos(
-                p.x - chunks / 2,
-                p.z - chunks / 2);
+        refPos = new ChunkPos(p.x - chunks / 2, p.z - chunks / 2);
         for (var x = 0; x < chunks; x++)
             for (var z = 0; z < chunks; z++)
-                data[x][z] = Diff.cache(new ChunkPos(refPos.x + x, refPos.z + z));
+                data[x][z] = cache.get(new ChunkPos(refPos.x + x, refPos.z + z).toLong());
     }
 }

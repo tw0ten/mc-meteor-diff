@@ -44,13 +44,6 @@ public class SaveDiff extends Module {
 
     private static byte[] hash(final Chunk c) {
         return new byte[] {
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
                 Math.random() < 0.5 ? (byte) 0 : 1,
         };
     }
@@ -72,26 +65,38 @@ public class SaveDiff extends Module {
     private final SettingGroup sgSave = this.settings.createGroup("Save");
 
     private final Setting<Boolean> saveMap = sgSave.add(new BoolSetting.Builder()
-            .name("save-map")
-            .description("Save map view.")
+            .name("map")
+            .description("Save the map view.")
+            .defaultValue(true)
+            .build());
+
+    private final Setting<Boolean> saveNew = sgSave.add(new BoolSetting.Builder()
+            .name("new")
+            .description("Detect whether the chunk is freshly generated.")
             .defaultValue(true)
             .build());
 
     private final Setting<Boolean> saveBlocks = sgSave.add(new BoolSetting.Builder()
-            .name("save-blocks")
+            .name("blocks")
             .description("Save block data.")
             .defaultValue(true)
             .build());
 
     private final Setting<Boolean> saveEntities = sgSave.add(new BoolSetting.Builder()
-            .name("save-entities")
+            .name("entities")
             .description("Save entity data.")
             .defaultValue(true)
             .build());
 
     private final SettingGroup sgStorage = this.settings.createGroup("Storage");
 
-    private final Setting<Boolean> zip = sgSave.add(new BoolSetting.Builder()
+    private final Setting<Boolean> async = sgStorage.add(new BoolSetting.Builder()
+            .name("async")
+            .description("Save each chunk in its own thread.")
+            .defaultValue(true)
+            .build());
+
+    private final Setting<Boolean> zip = sgStorage.add(new BoolSetting.Builder()
             .name("zip")
             .description("Compress saved data.")
             .defaultValue(false)
@@ -119,6 +124,13 @@ public class SaveDiff extends Module {
 
     private void save(final Chunk chunk) {
         final var time = System.currentTimeMillis();
+        if (!async.get())
+            save(chunk, time);
+        else
+            new Thread(() -> save(chunk, time), getClass().getSimpleName() + " " + chunk.getPos() + " " + time).start();
+    }
+
+    private void save(final Chunk chunk, final long time) {
         final var hash = hash(chunk);
 
         final var p = Diff.chunkPath(chunk.getPos());
@@ -147,10 +159,12 @@ public class SaveDiff extends Module {
 
                 if (saveMap.get())
                     write(file.resolve(paths.chunk.map), map(chunk));
+                if (saveNew.get())
+                    write(file.resolve(paths.chunk.isNew), new byte[] { isNew(chunk) ? (byte) 0 : 1 });
                 if (saveBlocks.get())
-                    write(file.resolve(paths.chunk.blocks), new byte[0]);
+                    write(file.resolve(paths.chunk.blocks), blocks(chunk));
                 if (saveEntities.get())
-                    write(file.resolve(paths.chunk.entities), new byte[0]);
+                    write(file.resolve(paths.chunk.entities), entities(chunk));
             }
 
             symlink(latest, follow(file).getFileName());
@@ -180,7 +194,7 @@ public class SaveDiff extends Module {
         final var colors = Diff.map(c);
         final var out = new byte[s * s * colorBytes];
 
-        for (var x = 0; x < s; x++) {
+        for (var x = 0; x < s; x++)
             for (var z = 0; z < s; z++) {
                 final var color = colors[x][z];
                 final var i = (x * s + z) * colorBytes;
@@ -188,8 +202,19 @@ public class SaveDiff extends Module {
                 out[i + 1] = (byte) color.g;
                 out[i + 2] = (byte) color.b;
             }
-        }
 
         return out;
+    }
+
+    private boolean isNew(final Chunk c) {
+        return true;
+    }
+
+    private byte[] blocks(final Chunk c) {
+        return new byte[0];
+    }
+
+    private byte[] entities(final Chunk c) {
+        return new byte[0];
     }
 }

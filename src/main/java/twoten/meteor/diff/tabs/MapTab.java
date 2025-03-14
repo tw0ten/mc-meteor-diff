@@ -24,7 +24,9 @@ import meteordevelopment.meteorclient.utils.misc.NbtUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.ChunkPos;
+import twoten.meteor.diff.Diff;
 import twoten.meteor.diff.Diff.paths;
 import twoten.meteor.diff.modules.SaveDiff;
 
@@ -40,9 +42,31 @@ public class MapTab extends Tab {
             return b < 0 ? 0x100 + b : b;
         }
 
-        private final Settings settings = new Settings();
+        private static int[][] loadChunk(final Path dim, final ChunkPos p) {
+            final var chunk = new int[s][s];
+            try {
+                final var bytes = Files.readAllBytes(dim
+                        .resolve(p.x + " " + p.z)
+                        .resolve(paths.latest)
+                        .resolve(paths.chunk.map));
+                for (var x = 0; x < chunk.length; x++)
+                    for (var z = 0; z < chunk[x].length; z++) {
+                        final var i = (x * s + z) * SaveDiff.colorBytes;
+                        chunk[x][z] = new Color(
+                                unsign(bytes[i + 0]),
+                                unsign(bytes[i + 1]),
+                                unsign(bytes[i + 2]))
+                                .getPacked();
+                    }
+            } catch (final Exception e) {
+                e.printStackTrace();
+            }
+            return chunk;
+        }
 
-        private final SettingGroup sgGeneral = settings.getDefaultGroup();
+        // private final SettingGroup sgGeneral = settings.getDefaultGroup();
+
+        private final Settings settings = new Settings();
 
         private final SettingGroup sgKeybind = settings.createGroup("Bind");
 
@@ -54,42 +78,8 @@ public class MapTab extends Tab {
                 .build());
 
         private int x, z;
-
-        private final int scale = 2;
-        private final Thread chunkLoader = new Thread() {
-            public Path p;
-            private final List<ChunkPos> chunks = new ArrayList<>();
-
-            @Override
-            public void run() {
-                for (final var c : chunks)
-                    loadChunk(c);
-                chunks.clear();
-            }
-
-            private int[][] loadChunk(final ChunkPos p) {
-                final var chunk = new int[s][s];
-                try {
-                    final var bytes = Files.readAllBytes(this.p
-                            .resolve(p.x + " " + p.z)
-                            .resolve(paths.latest)
-                            .resolve(paths.chunk.map));
-                    for (var x = 0; x < chunk.length; x++)
-                        for (var z = 0; z < chunk[x].length; z++) {
-                            final var i = (x * s + z) * SaveDiff.colorBytes;
-                            chunk[x][z] = new Color(
-                                    unsign(bytes[i + 0]),
-                                    unsign(bytes[i + 1]),
-                                    unsign(bytes[i + 2]))
-                                    .getPacked();
-                        }
-                } catch (final Exception e) {
-                    e.printStackTrace();
-                }
-                return chunk;
-            }
-
-        };
+        private final float scale = 2;
+        private Thread chunkLoader;
 
         public Map() {
             super("diff-map");
@@ -120,12 +110,24 @@ public class MapTab extends Tab {
         private void open() {
             if (mc.world == null)
                 return;
-            // chunkLoader.p = Diff.dimPath();
-            final var pos = mc.player.getBlockPos();
-            this.x = pos.getX();
-            this.z = pos.getZ();
-            // mc.setScreen();
-            // update();
+            {
+                final var pos = mc.player.getBlockPos();
+                this.x = pos.getX();
+                this.z = pos.getZ();
+            }
+            this.chunkLoader = new Thread(getName() + " chunkLoader") {
+                private final List<ChunkPos> chunks = new ArrayList<>();
+                private final Path p = Diff.dimPath();
+
+                @Override
+                public void run() {
+                    for (final var c : chunks)
+                        loadChunk(p, c);
+                    chunks.clear();
+                }
+            };
+            mc.setScreen(new Screen(Text.of(getName())) {
+            });
         }
     }
 
