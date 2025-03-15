@@ -45,8 +45,8 @@ public class Diff {
 
         final var height = c.getHeightmap(Heightmap.Type.WORLD_SURFACE);
         // TODO: nether
-        for (var x = 0; x < out.length; x++)
-            for (var z = 0; z < out[x].length; z++) {
+        for (var x = 0; x < s; x++)
+            for (var z = 0; z < s; z++) {
                 final var p = c.getPos().getBlockPos(x, height.get(x, z) - 1, z);
                 final var block = c.getBlockState(p);
                 out[x][z] = new Color(block.getMapColor(mc.world, p).color);

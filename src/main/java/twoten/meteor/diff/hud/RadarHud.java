@@ -51,7 +51,7 @@ public class RadarHud extends HudElement {
     private final Setting<Integer> size = sgGeneral.add(new IntSetting.Builder()
             .name("size")
             .description("The width and height of the radar in blocks.")
-            .defaultValue(11 * s)
+            .defaultValue(11 * s - 1)
             .min(1)
             .onChanged((i) -> {
                 chunks = (i + s - 1) / s + 2;
@@ -74,7 +74,6 @@ public class RadarHud extends HudElement {
     private final Setting<Double> scaleSelf = sgScale.add(new DoubleSetting.Builder()
             .name("self")
             .defaultValue(2)
-            .onChanged((i) -> calculateSize())
             .build());
 
     private final SettingGroup sgColor = settings.createGroup("Color");
@@ -122,20 +121,15 @@ public class RadarHud extends HudElement {
         {
             final var mx = getX() + getWidth() / 2;
             final var my = getY() + getHeight() / 2;
-            final var s = scale * scaleSelf.get();
             final var angle = mc.player.headYaw / 180 * Math.PI;
-            final var vertices = new double[][] {
-                    { 0, s * 2 },
-                    { -s, -s },
-                    { s, -s }
-            };
+            final var cos = Math.cos(angle);
+            final var sin = Math.sin(angle);
+            final var s = scale * scaleSelf.get();
+            final var v = new double[][] { { 0, s * 2 }, { -s, -s }, { s, -s } };
             r.triangle(
-                    mx + (vertices[0][0] * scale * Math.cos(angle) - vertices[0][1] * scale * Math.sin(angle)),
-                    my + (vertices[0][0] * scale * Math.sin(angle) + vertices[0][1] * scale * Math.cos(angle)),
-                    mx + (vertices[1][0] * scale * Math.cos(angle) - vertices[1][1] * scale * Math.sin(angle)),
-                    my + (vertices[1][0] * scale * Math.sin(angle) + vertices[1][1] * scale * Math.cos(angle)),
-                    mx + (vertices[2][0] * scale * Math.cos(angle) - vertices[2][1] * scale * Math.sin(angle)),
-                    my + (vertices[2][0] * scale * Math.sin(angle) + vertices[2][1] * scale * Math.cos(angle)),
+                    mx + (v[0][0] * cos - v[0][1] * sin), my + (v[0][0] * sin + v[0][1] * cos),
+                    mx + (v[1][0] * cos - v[1][1] * sin), my + (v[1][0] * sin + v[1][1] * cos),
+                    mx + (v[2][0] * cos - v[2][1] * sin), my + (v[2][0] * sin + v[2][1] * cos),
                     selfColor.get());
         }
     }
