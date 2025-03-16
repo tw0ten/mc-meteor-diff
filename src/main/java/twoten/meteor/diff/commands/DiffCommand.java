@@ -20,7 +20,13 @@ public class DiffCommand extends Command {
     @Override
     public void build(final LiteralArgumentBuilder<CommandSource> builder) {
         builder.executes(context -> {
-            info("hi");
+            final var pos = mc.player.getChunkPos();
+            final var i = new Diff.ChunkInfo(Diff.chunkPath(pos));
+            info("pos: " + Diff.posToString(pos));
+            info("new: " + i.isNew());
+            info("oldest: " + i.oldest());
+            info("newest: " + i.newest());
+            info("versions: " + i.versions().length);
             return SINGLE_SUCCESS;
         });
 
@@ -32,10 +38,10 @@ public class DiffCommand extends Command {
                 public void run() {
                     info(getName());
                     for (final var d : p.toFile().listFiles()) {
-                        info(getName() + "/" + d.getName());
+                        info(getName() + ": " + d.toPath().toAbsolutePath());
                         for (final var cpos : d.listFiles()) {
                             try {
-                                final var latest = cpos.toPath().resolve(paths.latest);
+                                final var latest = cpos.toPath().resolve(paths.pos.latest);
                                 final var realLatest = latest.toRealPath();
                                 for (final var i : cpos.listFiles()) {
                                     if (i.toPath().equals(realLatest) || i.toPath().equals(latest))

@@ -22,6 +22,7 @@ import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.network.packet.s2c.play.UnloadChunkS2CPacket;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
 import twoten.meteor.diff.Addon;
 import twoten.meteor.diff.Diff;
@@ -135,7 +136,7 @@ public class SaveDiff extends Module {
 
         final var p = Diff.chunkPath(chunk.getPos());
         final var file = p.resolve(String.valueOf(time));
-        final var latest = p.resolve(paths.latest);
+        final var latest = p.resolve(paths.pos.latest);
 
         try {
             if (exists(latest)) {
@@ -157,14 +158,15 @@ public class SaveDiff extends Module {
                 mkdirs(file);
                 write(file.resolve(paths.hash), hash);
 
+                if (saveNew.get() && !exists(file.getParent().resolve(paths.pos.isNew)))
+                    write(file.getParent().resolve(paths.pos.isNew), new byte[] { isNew(chunk) ? (byte) 0 : 1 });
+
                 if (saveMap.get())
-                    write(file.resolve(paths.chunk.map), map(chunk));
-                if (saveNew.get())
-                    write(file.resolve(paths.chunk.isNew), new byte[] { isNew(chunk) ? (byte) 0 : 1 });
+                    write(file.resolve(paths.pos.chunk.map), map(chunk));
                 if (saveBlocks.get())
-                    write(file.resolve(paths.chunk.blocks), blocks(chunk));
+                    write(file.resolve(paths.pos.chunk.blocks), blocks(chunk));
                 if (saveEntities.get())
-                    write(file.resolve(paths.chunk.entities), entities(chunk));
+                    write(file.resolve(paths.pos.chunk.entities), entities(chunk));
             }
 
             symlink(latest, follow(file).getFileName());
@@ -207,6 +209,16 @@ public class SaveDiff extends Module {
     }
 
     private boolean isNew(final Chunk c) {
+        final var p = c.getPos();
+        // TODO: just the fluid check is quite unreliable
+        for (var x = p.getStartX(); x <= p.getEndX(); x++)
+            for (var y = c.getBottomY(); y <= c.getBottomY() + c.getHeight(); y++)
+                for (var z = p.getStartZ(); z <= p.getEndZ(); z++) {
+                    final var fluidState = c.getFluidState(new BlockPos(x, y, z));
+                    if (fluidState.isEmpty() || fluidState.isStill())
+                        continue;
+                    return false;
+                }
         return true;
     }
 

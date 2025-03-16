@@ -2,6 +2,7 @@ package twoten.meteor.diff;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import meteordevelopment.meteorclient.MeteorClient;
@@ -13,15 +14,62 @@ import net.minecraft.world.chunk.Chunk;
 
 public class Diff {
     public interface paths {
-        interface chunk {
-            Path map = Path.of("map");
+        interface pos {
+            interface chunk {
+                Path map = Path.of("map");
+                Path blocks = Path.of("blocks");
+                Path entities = Path.of("entities");
+            }
+
             Path isNew = Path.of("new");
-            Path blocks = Path.of("blocks");
-            Path entities = Path.of("entities");
+            Path latest = Path.of(String.valueOf(0L));
         }
 
         Path hash = Path.of(".hash");
-        Path latest = Path.of(String.valueOf(0L));
+    }
+
+    public static class ChunkInfo {
+        private final Path p;
+        private final Path c;
+
+        public ChunkInfo(final Path p) {
+            this.p = p;
+            this.c = p.resolve(paths.pos.latest);
+        }
+
+        public Boolean isNew() {
+            try {
+                return Files.readAllBytes(p.resolve(paths.pos.isNew))[0] == 0;
+            } catch (final Exception e) {
+                return null;
+            }
+        }
+
+        public Path[] versions() {
+            try {
+                return Files.list(p)
+                        .filter(p -> !p.getFileName().equals(paths.pos.latest.getFileName()))
+                        .toArray(Path[]::new);
+            } catch (final Exception e) {
+                return new Path[0];
+            }
+        }
+
+        public long newest() {
+            try {
+                return Long.parseLong(c.toRealPath().toFile().getName());
+            } catch (final Exception e) {
+                return 0;
+            }
+        }
+
+        public long oldest() {
+            try {
+                return Long.parseLong(p.toFile().list()[1]);
+            } catch (final Exception e) {
+                return 0;
+            }
+        }
     }
 
     public static final int s = Chunk.field_54147;
@@ -37,7 +85,11 @@ public class Diff {
     }
 
     public static Path chunkPath(final ChunkPos p) {
-        return dimPath().resolve(p.x + " " + p.z);
+        return dimPath().resolve(posToString(p));
+    }
+
+    public static String posToString(final ChunkPos p) {
+        return p.x + " " + p.z;
     }
 
     public static Color[][] map(final Chunk c) {
@@ -54,5 +106,4 @@ public class Diff {
 
         return out;
     }
-
 }
