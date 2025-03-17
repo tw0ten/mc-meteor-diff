@@ -6,7 +6,6 @@ import meteordevelopment.meteorclient.systems.hud.HudElement;
 import meteordevelopment.meteorclient.systems.hud.HudElementInfo;
 import meteordevelopment.meteorclient.systems.hud.HudRenderer;
 import meteordevelopment.meteorclient.utils.render.color.Color;
-import net.minecraft.util.math.ChunkPos;
 import twoten.meteor.diff.Addon;
 import twoten.meteor.diff.Diff;
 

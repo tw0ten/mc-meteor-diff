@@ -26,6 +26,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import twoten.meteor.diff.Diff;
 import twoten.meteor.diff.Diff.paths;
@@ -39,6 +40,8 @@ public class MapTab extends Tab {
             private final Map<Long, int[][]> cache = new HashMap<>();
             private boolean close = false;
 
+            private final BlockPos.Mutable bp = new BlockPos.Mutable();
+
             public MapScreen() {
                 super(Text.of(getName()));
 
@@ -46,15 +49,18 @@ public class MapTab extends Tab {
                 z = mc.player.getBlockZ();
                 w = mc.getWindow().getWidth();
                 h = mc.getWindow().getHeight();
-                w = h;
 
                 // TODO: laggy af even thoruhg its a sep thread????
-                // my hea d hurts im sick idk wtf thisss is
+                // 😭😭😭😭😭😭😭😭🥶🥶🥶🤒🤒🤒🤒🤒🤒🤢🤒 <- me
                 new Thread(getName()) {
+                    private final BlockPos.Mutable bp = new BlockPos.Mutable();
+
                     public void run() {
                         while (!close) {
                             try {
-                                update();
+                                synchronized (cache) {
+                                    update();
+                                }
                                 sleep(1000);
                             } catch (final Exception e) {
                                 e.printStackTrace();
@@ -64,36 +70,38 @@ public class MapTab extends Tab {
 
                     private void update() {
                         for (var x1 = 0; x1 < w / s; x1++)
-                            for (var z1 = 0; z1 < w / s; z1++) {
-                                final var pos = new ChunkPos((x - w / 2) / s + x1, (z - h / 2) / s + z1);
-                                // TODO: -1 i guess turns into 0 as does +1 which is wrong do i offseet by -s/2?
-                                if (cache.containsKey(pos.toLong()))
+                            for (var z1 = 0; z1 < h / s; z1++) {
+                                bp.set(x1 * s + x - w / 2, 0, z1 * s + z - h / 2);
+                                final var pos = ChunkPos.toLong(bp);
+                                if (cache.containsKey(pos))
                                     continue;
-                                cache.put(pos.toLong(), loadChunk(Diff.dimPath(), pos));
+                                cache.put(pos, loadChunk(Diff.dimPath(), new ChunkPos(pos)));
                             }
                     }
                 }.start();
             }
 
             @Override
-            public void render(final DrawContext context, final int mouseX, final int mouseY, final float delta) {
+            public void render(final DrawContext r, final int mouseX, final int mouseY, final float delta) {
                 for (var x = 0; x < w; x++)
                     for (var z = 0; z < h; z++) {
                         final var ax = this.x - w / 2 + x;
                         final var az = this.z - h / 2 + z;
-                        final var c = cache.get(new ChunkPos(ax / s, az / s).toLong());
+                        final var cp = new ChunkPos(bp.set(ax, 0, az));
+                        final var c = cache.get(cp.toLong());
                         if (c == null)
                             continue;
-                        context.fill(x, z, (int) (x + 1), (int) (z + 1),
-                                c[ax < 0 ? s - 1 + ax % s : ax % s][az < 0 ? s - 1 + az % s : az % s]); // ??????/
+                        r.fill(x, z, x + 1, z + 1, c[ax - cp.getStartX()][az - cp.getStartZ()]);
                     }
             }
 
             @Override
-            public boolean mouseDragged(final double mouseX, final double mouseY, final int button, final double deltaX,
-                    final double deltaY) {
-                this.x -= deltaX;
-                this.z -= deltaY;
+            public boolean mouseDragged(
+                    final double x, final double y,
+                    final int button,
+                    final double dx, final double dy) {
+                this.x -= dx;
+                this.z -= dy;
                 return true;
             }
 
@@ -105,9 +113,7 @@ public class MapTab extends Tab {
         }
 
         public static DiffMap get() {
-            if (true)
-                return new DiffMap();
-            return Systems.get(DiffMap.class); // how do i add a system?????????/
+            return Systems.get(DiffMap.class);
         }
 
         private static int unsign(final byte b) {
@@ -175,6 +181,8 @@ public class MapTab extends Tab {
         }
 
         private void open() {
+            if (mc.currentScreen != null)
+                return;
             if (mc.world == null)
                 return;
             mc.setScreen(new MapScreen());
@@ -211,11 +219,11 @@ public class MapTab extends Tab {
 
             return false;
         }
-
     }
 
     public MapTab() {
         super("Map");
+        Systems.add(new DiffMap());
     }
 
     @Override

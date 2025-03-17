@@ -23,8 +23,10 @@ import meteordevelopment.meteorclient.systems.hud.HudElement;
 import meteordevelopment.meteorclient.systems.hud.HudElementInfo;
 import meteordevelopment.meteorclient.systems.hud.HudRenderer;
 import meteordevelopment.meteorclient.utils.render.color.Color;
+import meteordevelopment.meteorclient.utils.render.color.RainbowColors;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import net.minecraft.network.packet.s2c.play.UnloadChunkS2CPacket;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
@@ -32,6 +34,8 @@ import twoten.meteor.diff.Addon;
 import twoten.meteor.diff.Diff;
 
 public class RadarHud extends HudElement {
+    // TODO: fucking malloc.c fails an assertion this is cooked.
+    // has to be something with the eventbus
     public static final HudElementInfo<RadarHud> INFO = new HudElementInfo<>(
             Addon.HUD_GROUP,
             "radar",
@@ -92,8 +96,26 @@ public class RadarHud extends HudElement {
 
     public RadarHud() {
         super(INFO);
+
+        RainbowColors.register(() -> {
+            selfColor.get().update();
+        });
+
         calculateSize();
-        MeteorClient.EVENT_BUS.subscribe(this);
+
+        toggle();
+        toggle();
+    }
+
+    @Override
+    public void toggle() {
+        super.toggle();
+        if (isActive()) {
+            MeteorClient.EVENT_BUS.subscribe(this);
+        } else {
+            MeteorClient.EVENT_BUS.unsubscribe(this);
+            clear();
+        }
     }
 
     @Override
@@ -105,10 +127,13 @@ public class RadarHud extends HudElement {
         final var opacity = this.opacity.get();
         final var scale = this.scale.get();
 
+        final var sx = mc.player.getBlockX() - size / 2 - refPos.getStartPos().getX();
+        final var sy = mc.player.getBlockZ() - size / 2 - refPos.getStartPos().getZ();
+
         for (var x = 0; x < size; x++)
             for (var z = 0; z < size; z++) {
-                final var ax = x + mc.player.getBlockX() - size / 2 - refPos.getStartPos().getX();
-                final var az = z + mc.player.getBlockZ() - size / 2 - refPos.getStartPos().getZ();
+                final var ax = x + sx;
+                final var az = z + sy;
                 if (ax < 0 || az < 0 || ax >= chunks * s || az >= chunks * s)
                     continue;
                 final var chunk = data[ax / s][az / s];
@@ -146,44 +171,41 @@ public class RadarHud extends HudElement {
 
     @EventHandler
     private void onBlockUpdate(final BlockUpdateEvent event) {
-        if (!isActive())
-            return;
         update.add(mc.world.getChunk(event.pos));
     }
 
     @EventHandler
     private void onPacketReceive(final PacketEvent.Receive event) {
-        if (!isActive())
-            return;
-        if (!(event.packet instanceof final UnloadChunkS2CPacket p))
-            return;
-        cache.remove(p.pos().toLong());
+        switch (event.packet) {
+            case final UnloadChunkS2CPacket p:
+                cache.remove(p.pos().toLong());
+                break;
+            case final PlayerRespawnS2CPacket p:
+                clear();
+                break;
+            default:
+                return;
+        }
     }
 
     @EventHandler
     private void onChunkData(final ChunkDataEvent event) {
-        if (!isActive())
-            return;
-        update.add(event.chunk());
         cache(event.chunk());
         update();
     }
 
     @EventHandler
     private void onGameLeft(final GameLeftEvent e) {
-        update.clear();
-        cache.clear();
+        clear();
     }
 
     @EventHandler
-    private void onTick(final TickEvent.Post event) {
-        if (!isActive())
+    private void onTick(final TickEvent.Pre event) {
+        if (update.isEmpty())
             return;
-        if (!update.isEmpty()) {
-            update.forEach(this::cache);
-            update.clear();
-            update();
-        }
+        update.forEach(this::cache);
+        update.clear();
+        update();
     }
 
     private void update() {
@@ -192,5 +214,10 @@ public class RadarHud extends HudElement {
         for (var x = 0; x < chunks; x++)
             for (var z = 0; z < chunks; z++)
                 data[x][z] = cache.get(new ChunkPos(refPos.x + x, refPos.z + z).toLong());
+    }
+
+    private void clear() {
+        update.clear();
+        cache.clear();
     }
 }

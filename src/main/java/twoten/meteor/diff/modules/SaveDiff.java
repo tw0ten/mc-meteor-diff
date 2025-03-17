@@ -210,11 +210,12 @@ public class SaveDiff extends Module {
 
     private boolean isNew(final Chunk c) {
         final var p = c.getPos();
+        final var b = new BlockPos.Mutable();
         // TODO: just the fluid check is quite unreliable
         for (var x = p.getStartX(); x <= p.getEndX(); x++)
             for (var y = c.getBottomY(); y <= c.getBottomY() + c.getHeight(); y++)
                 for (var z = p.getStartZ(); z <= p.getEndZ(); z++) {
-                    final var fluidState = c.getFluidState(new BlockPos(x, y, z));
+                    final var fluidState = c.getFluidState(b.set(x, y, z));
                     if (fluidState.isEmpty() || fluidState.isStill())
                         continue;
                     return false;
